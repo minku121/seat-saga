@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SeatSaga Inventory API - Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0d13;
+      --surface: #121520;
+      --card: #181c2b;
+      --card-hover: #1e2436;
+      --border: #262c3f;
+      --accent: #6366f1;
+      --accent2: #a855f7;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --public: #10b981;
+      --admin: #f43f5e;
+      --GET: #10b981;
+      --POST: #3b82f6;
+      --PUT: #f59e0b;
+      --PATCH: #8b5cf6;
+      --DELETE: #ef4444;
+      --GET-bg: rgba(16, 185, 129, .12);
+      --POST-bg: rgba(59, 130, 246, .12);
+      --PUT-bg: rgba(245, 158, 11, .12);
+      --PATCH-bg: rgba(139, 92, 246, .12);
+      --DELETE-bg: rgba(239, 68, 68, .12);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    header {
+      background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(244, 63, 94, 0.12) 0%, transparent 45%),
+        linear-gradient(180deg, #131726 0%, #0b0d13 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 44px 32px 36px;
+    }
+
+    .header-inner {
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+
+    .badges-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .badge-primary {
+      background: rgba(99, 102, 241, .18);
+      border: 1px solid rgba(99, 102, 241, .4);
+      color: #c7d2fe;
+    }
+
+    .badge-security {
+      background: rgba(244, 63, 94, .15);
+      border: 1px solid rgba(244, 63, 94, .4);
+      color: #fecdd3;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.35;
+      }
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+
+    h1 span.grad {
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f43f5e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 14.5px;
+      max-width: 760px;
+      margin-bottom: 24px;
+    }
+
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .meta-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .meta-pill strong {
+      color: var(--text);
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    .auth-banner {
+      margin-top: 24px;
+      background: rgba(244, 63, 94, .08);
+      border: 1px solid rgba(244, 63, 94, .25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 13px;
+      color: #fda4af;
+    }
+
+    .auth-banner code {
+      background: #0f111a;
+      border: 1px solid rgba(244, 63, 94, .3);
+      padding: 2px 7px;
+      border-radius: 5px;
+      color: #ffe4e6;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    .container {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat {
+      flex: 1;
+      min-width: 110px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 40px 0 16px;
+    }
+
+    .section-title.public {
+      color: var(--public);
+    }
+
+    .section-title.admin {
+      color: var(--admin);
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .tag-scope {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .tag-scope.pub {
+      background: rgba(16, 185, 129, .15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, .3);
+    }
+
+    .tag-scope.adm {
+      background: rgba(244, 63, 94, .15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, .3);
+    }
+
+    .endpoint {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .endpoint:hover {
+      border-color: rgba(99, 102, 241, .4);
+      background: var(--card-hover);
+    }
+
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      min-width: 68px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .GET {
+      color: var(--GET);
+      background: var(--GET-bg);
+      border: 1px solid rgba(16, 185, 129, .25);
+    }
+
+    .POST {
+      color: var(--POST);
+      background: var(--POST-bg);
+      border: 1px solid rgba(59, 130, 246, .25);
+    }
+
+    .PUT {
+      color: var(--PUT);
+      background: var(--PUT-bg);
+      border: 1px solid rgba(245, 158, 11, .25);
+    }
+
+    .PATCH {
+      color: var(--PATCH);
+      background: var(--PATCH-bg);
+      border: 1px solid rgba(139, 92, 246, .25);
+    }
+
+    .DELETE {
+      color: var(--DELETE);
+      background: var(--DELETE-bg);
+      border: 1px solid rgba(239, 68, 68, .25);
+    }
+
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text);
+      flex: 1;
+      word-break: break-all;
+    }
+
+    .path-param {
+      color: #f472b6;
+    }
+
+    .endpoint-desc {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-left: auto;
+      padding-left: 12px;
+      text-align: right;
+    }
+
+    .chevron {
+      color: var(--muted);
+      font-size: 11px;
+      transition: transform .2s ease;
+      flex-shrink: 0;
+    }
+
+    .endpoint.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .endpoint-body {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 20px;
+      background: #0f121b;
+    }
+
+    .endpoint.open .endpoint-body {
+      display: block;
+    }
+
+    .body-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media(max-width: 768px) {
+      .body-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .body-section h4 {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    pre {
+      background: #08090f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      overflow-x: auto;
+    }
+
+    .key {
+      color: #93c5fd;
+    }
+
+    .str {
+      color: #86efac;
+    }
+
+    .num {
+      color: #fde047;
+    }
+
+    .bool {
+      color: #f472b6;
+    }
+
+    .null {
+      color: #94a3b8;
+    }
+
+    .headers-box {
+      background: rgba(244, 63, 94, .07);
+      border: 1px dashed rgba(244, 63, 94, .3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 12px;
+    }
+
+    .headers-box strong {
+      color: #fda4af;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .params-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      margin-top: 6px;
+    }
+
+    .params-table th {
+      text-align: left;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 8px;
+    }
+
+    .params-table td {
+      padding: 6px 8px 6px 0;
+      border-top: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .params-table td:first-child {
+      font-family: 'JetBrains Mono', monospace;
+      color: #a5b4fc;
+    }
+
+    .req {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #f87171;
+      background: rgba(239, 68, 68, .12);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .opt {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      background: rgba(148, 163, 184, .12);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .code-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-right: 6px;
+      margin-bottom: 8px;
+    }
+
+    .c2xx {
+      background: rgba(16, 185, 129, .15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, .3);
+    }
+
+    .c4xx {
+      background: rgba(239, 68, 68, .15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, .3);
+    }
+
+    .c401 {
+      background: rgba(244, 63, 94, .18);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, .35);
+    }
+
+    #topBtn {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      font-size: 16px;
+      box-shadow: 0 4px 18px rgba(99, 102, 241, .4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      display: grid;
+      place-items: center;
+    }
+
+    #topBtn.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="badges-row">
+        <div class="badge badge-primary"><span class="pulse-dot"></span>Inventory Service</div>
+        <div class="badge badge-security">🔒 Admin JWT Secured (secret: admin-key)</div>
+      </div>
+      <h1>SeatSaga <span class="grad">API Reference</span></h1>
+      <p class="subtitle">Complete catalog of Inventory endpoints. Public APIs allow browsing events and seat types
+        without auth. Admin APIs manage events and seat inventories and require a valid JWT signed with
+        <code>admin-key</code>.</p>
+
+      <div class="meta-row">
+        <div class="meta-pill">Base URL: <strong>http://localhost:8082</strong></div>
+        <div class="meta-pill">JWT Header: <strong>Authorization: Bearer &lt;token&gt;</strong></div>
+        <div class="meta-pill">Admin Secret: <strong>admin-key</strong></div>
+      </div>
+
+      <div class="auth-banner">
+        <span style="font-size:18px;">💡</span>
+        <div>
+          <strong>How to authenticate admin requests:</strong> Call <code>POST /api/admin/token</code> with
+          <code>{"secret": "admin-key"}</code> to receive a 24-hour Bearer token. Include it on all
+          <code>/api/admin/**</code> endpoints via <code>Authorization: Bearer &lt;token&gt;</code>.
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-num">10</div>
+        <div class="stat-lbl">Endpoints</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--public);">3</div>
+        <div class="stat-lbl">Public APIs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--admin);">7</div>
+        <div class="stat-lbl">Admin APIs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--GET);">3</div>
+        <div class="stat-lbl">GET</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--POST);">4</div>
+        <div class="stat-lbl">POST</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--PUT);">1</div>
+        <div class="stat-lbl">PUT</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--PATCH);">1</div>
+        <div class="stat-lbl">PATCH</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" style="color:var(--DELETE);">1</div>
+        <div class="stat-lbl">DELETE</div>
+      </div>
+    </div>
+
+    <!-- ================= PUBLIC SECTION ================= -->
+    <div class="section-title public">
+      🌐 Public Endpoints <span class="tag-scope pub">No Auth Required</span>
+    </div>
+
+    <!-- GET /api/events -->
+    <div class="endpoint" id="ep-pub-events">
+      <div class="endpoint-header" onclick="toggle('ep-pub-events')">
+        <span class="method-badge GET">GET</span>
+        <span class="endpoint-path">/api/events</span>
+        <span class="endpoint-desc">List all events</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Request</h4>
+            <pre><span class="null">// No parameters or auth required</span></pre>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span></div>
+            <pre><span class="str">[</span>
+  <span class="str">{</span>
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"name"</span>: <span class="str">"Coldplay Live 2026"</span>,
+    <span class="key">"description"</span>: <span class="str">"Music of the Spheres"</span>,
+    <span class="key">"venue"</span>: <span class="str">"Wembley Stadium"</span>,
+    <span class="key">"maxCapacity"</span>: <span class="num">80000</span>,
+    <span class="key">"eventDate"</span>: <span class="str">"2026-08-20T20:00:00"</span>,
+    <span class="key">"status"</span>: <span class="str">"DRAFT"</span>
+  <span class="str">}</span>
+<span class="str">]</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GET /api/events/{eventId} -->
+    <div class="endpoint" id="ep-pub-event-id">
+      <div class="endpoint-header" onclick="toggle('ep-pub-event-id')">
+        <span class="method-badge GET">GET</span>
+        <span class="endpoint-path">/api/events/<span class="path-param">{eventId}</span></span>
+        <span class="endpoint-desc">Get single event details</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Path Parameters</h4>
+            <table class="params-table">
+              <tr>
+                <th>Param</th>
+                <th>Type</th>
+                <th></th>
+              </tr>
+              <tr>
+                <td>eventId</td>
+                <td>Long</td>
+                <td><span class="req">required</span></td>
+              </tr>
+            </table>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span><span class="code-pill c4xx">404 Not Found</span></div>
+            <pre><span class="str">{</span>
+  <span class="key">"id"</span>: <span class="num">1</span>,
+  <span class="key">"name"</span>: <span class="str">"Coldplay Live 2026"</span>,
+  <span class="key">"description"</span>: <span class="str">"Music of the Spheres"</span>,
+  <span class="key">"venue"</span>: <span class="str">"Wembley Stadium"</span>,
+  <span class="key">"maxCapacity"</span>: <span class="num">80000</span>,
+  <span class="key">"eventDate"</span>: <span class="str">"2026-08-20T20:00:00"</span>,
+  <span class="key">"status"</span>: <span class="str">"DRAFT"</span>
+<span class="str">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GET /api/events/{eventId}/seat-types -->
+    <div class="endpoint" id="ep-pub-seat-types">
+      <div class="endpoint-header" onclick="toggle('ep-pub-seat-types')">
+        <span class="method-badge GET">GET</span>
+        <span class="endpoint-path">/api/events/<span class="path-param">{eventId}</span>/seat-types</span>
+        <span class="endpoint-desc">List seat types with live counts</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Path Parameters</h4>
+            <table class="params-table">
+              <tr>
+                <th>Param</th>
+                <th>Type</th>
+                <th></th>
+              </tr>
+              <tr>
+                <td>eventId</td>
+                <td>Long</td>
+                <td><span class="req">required</span></td>
+              </tr>
+            </table>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span><span class="code-pill c4xx">404 Not Found</span></div>
+            <pre><span class="str">[</span>
+  <span class="str">{</span>
+    <span class="key">"id"</span>: <span class="num">10</span>,
+    <span class="key">"eventId"</span>: <span class="num">1</span>,
+    <span class="key">"code"</span>: <span class="str">"VIP"</span>,
+    <span class="key">"name"</span>: <span class="str">"VIP Lounge"</span>,
+    <span class="key">"description"</span>: <span class="str">"Premium seating + drinks"</span>,
+    <span class="key">"price"</span>: <span class="num">499.99</span>,
+    <span class="key">"totalQuantity"</span>: <span class="num">100</span>,
+    <span class="key">"available"</span>: <span class="num">92</span>,
+    <span class="key">"held"</span>: <span class="num">5</span>,
+    <span class="key">"booked"</span>: <span class="num">3</span>,
+    <span class="key">"active"</span>: <span class="bool">true</span>
+  <span class="str">}</span>
+<span class="str">]</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= AUTH SECTION ================= -->
+    <div class="section-title admin">
+      🔑 Admin Authentication <span class="tag-scope adm">Token Endpoint</span>
+    </div>
+
+    <!-- POST /api/admin/token -->
+    <div class="endpoint" id="ep-auth-token">
+      <div class="endpoint-header" onclick="toggle('ep-auth-token')">
+        <span class="method-badge POST">POST</span>
+        <span class="endpoint-path">/api/admin/token</span>
+        <span class="endpoint-desc">Exchange admin secret for JWT token</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Request Body</h4>
+            <pre><span class="str">{</span>
+  <span class="key">"secret"</span>: <span class="str">"admin-key"</span>
+<span class="str">}</span></pre>
+            <p style="margin-top:8px;font-size:12px;color:var(--muted);">Also accepts query parameter
+              <code>?secret=admin-key</code> or header <code>X-Admin-Key: admin-key</code>.</p>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span><span class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="str">{</span>
+  <span class="key">"token"</span>: <span class="str">"eyJhbGciOiJIUzI1NiJ9..."</span>,
+  <span class="key">"tokenType"</span>: <span class="str">"Bearer"</span>,
+  <span class="key">"expiresIn"</span>: <span class="num">86400</span>,
+  <span class="key">"message"</span>: <span class="str">"Admin JWT created successfully..."</span>
+<span class="str">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ADMIN EVENT SECTION ================= -->
+    <div class="section-title admin">
+      🛡️ Admin Event Management <span class="tag-scope adm">JWT Required</span>
+    </div>
+
+    <!-- POST /api/admin/events -->
+    <div class="endpoint" id="ep-adm-create-event">
+      <div class="endpoint-header" onclick="toggle('ep-adm-create-event')">
+        <span class="method-badge POST">POST</span>
+        <span class="endpoint-path">/api/admin/events</span>
+        <span class="endpoint-desc">Create a new event</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="headers-box">
+          <strong>Header Required:</strong> <code>Authorization: Bearer &lt;admin-token&gt;</code>
+        </div>
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Request Body</h4>
+            <pre><span class="str">{</span>
+  <span class="key">"name"</span>: <span class="str">"Rock Concert 2026"</span>,
+  <span class="key">"description"</span>: <span class="str">"Live rock music festival"</span>,
+  <span class="key">"venue"</span>: <span class="str">"Madison Square Garden"</span>,
+  <span class="key">"maxCapacity"</span>: <span class="num">5000</span>,
+  <span class="key">"eventDate"</span>: <span class="str">"2026-11-20T19:30:00"</span>
+<span class="str">}</span></pre>
+            <table class="params-table">
+              <tr>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Rules</th>
+              </tr>
+              <tr>
+                <td>name</td>
+                <td>string</td>
+                <td><span class="req">required</span> max 150</td>
+              </tr>
+              <tr>
+                <td>venue</td>
+                <td>string</td>
+                <td><span class="req">required</span> max 255</td>
+              </tr>
+              <tr>
+                <td>maxCapacity</td>
+                <td>integer</td>
+                <td><span class="req">required</span> min 1</td>
+              </tr>
+              <tr>
+                <td>eventDate</td>
+                <td>LocalDateTime</td>
+                <td><span class="req">required</span> future date</td>
+              </tr>
+              <tr>
+                <td>description</td>
+                <td>string</td>
+                <td><span class="opt">optional</span> max 1000</td>
+              </tr>
+            </table>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">201 Created</span><span class="code-pill c4xx">400 Bad Request</span><span
+                class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="str">{</span>
+  <span class="key">"id"</span>: <span class="num">2</span>,
+  <span class="key">"name"</span>: <span class="str">"Rock Concert 2026"</span>,
+  <span class="key">"venue"</span>: <span class="str">"Madison Square Garden"</span>,
+  <span class="key">"maxCapacity"</span>: <span class="num">5000</span>,
+  <span class="key">"eventDate"</span>: <span class="str">"2026-11-20T19:30:00"</span>,
+  <span class="key">"status"</span>: <span class="str">"DRAFT"</span>
+<span class="str">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PUT /api/admin/events/{eventId} -->
+    <div class="endpoint" id="ep-adm-update-event">
+      <div class="endpoint-header" onclick="toggle('ep-adm-update-event')">
+        <span class="method-badge PUT">PUT</span>
+        <span class="endpoint-path">/api/admin/events/<span class="path-param">{eventId}</span></span>
+        <span class="endpoint-desc">Update event details</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="headers-box">
+          <strong>Header Required:</strong> <code>Authorization: Bearer &lt;admin-token&gt;</code>
+        </div>
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Path Parameters & Request Body</h4>
+            <pre><span class="str">{</span>
+  <span class="key">"name"</span>: <span class="str">"Updated Concert Name"</span>,
+  <span class="key">"description"</span>: <span class="str">"Updated description"</span>,
+  <span class="key">"venue"</span>: <span class="str">"New Venue Hall"</span>,
+  <span class="key">"maxCapacity"</span>: <span class="num">6000</span>,
+  <span class="key">"eventDate"</span>: <span class="str">"2026-12-01T20:00:00"</span>
+<span class="str">}</span></pre>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span><span class="code-pill c4xx">400 / 404</span><span
+                class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="str">{</span>
+  <span class="key">"id"</span>: <span class="num">2</span>,
+  <span class="key">"name"</span>: <span class="str">"Updated Concert Name"</span>,
+  <span class="key">"venue"</span>: <span class="str">"New Venue Hall"</span>,
+  <span class="key">"maxCapacity"</span>: <span class="num">6000</span>,
+  <span class="key">"eventDate"</span>: <span class="str">"2026-12-01T20:00:00"</span>,
+  <span class="key">"status"</span>: <span class="str">"DRAFT"</span>
+<span class="str">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE /api/admin/events/{eventId} -->
+    <div class="endpoint" id="ep-adm-delete-event">
+      <div class="endpoint-header" onclick="toggle('ep-adm-delete-event')">
+        <span class="method-badge DELETE">DELETE</span>
+        <span class="endpoint-path">/api/admin/events/<span class="path-param">{eventId}</span></span>
+        <span class="endpoint-desc">Delete an event</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="headers-box">
+          <strong>Header Required:</strong> <code>Authorization: Bearer &lt;admin-token&gt;</code>
+        </div>
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Path Parameters</h4>
+            <table class="params-table">
+              <tr>
+                <th>Param</th>
+                <th>Type</th>
+                <th></th>
+              </tr>
+              <tr>
+                <td>eventId</td>
+                <td>Long</td>
+                <td><span class="req">required</span></td>
+              </tr>
+            </table>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">204 No Content</span><span class="code-pill c4xx">404 Not
+                Found</span><span class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="null">// 204 No Content (empty body)</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ADMIN SEAT SECTION ================= -->
+    <div class="section-title admin">
+      💺 Admin Seat & Seat Type Management <span class="tag-scope adm">JWT Required</span>
+    </div>
+
+    <!-- POST /api/admin/events/{eventId}/seat-types -->
+    <div class="endpoint" id="ep-adm-create-seat-type">
+      <div class="endpoint-header" onclick="toggle('ep-adm-create-seat-type')">
+        <span class="method-badge POST">POST</span>
+        <span class="endpoint-path">/api/admin/events/<span class="path-param">{eventId}</span>/seat-types</span>
+        <span class="endpoint-desc">Create seat type & auto-generate seats</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="headers-box">
+          <strong>Header Required:</strong> <code>Authorization: Bearer &lt;admin-token&gt;</code>
+        </div>
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Request Body</h4>
+            <pre><span class="str">{</span>
+  <span class="key">"code"</span>: <span class="str">"VIP"</span>,
+  <span class="key">"name"</span>: <span class="str">"VIP Floor"</span>,
+  <span class="key">"description"</span>: <span class="str">"Front row seats"</span>,
+  <span class="key">"price"</span>: <span class="num">350.00</span>,
+  <span class="key">"quantity"</span>: <span class="num">100</span>
+<span class="str">}</span></pre>
+            <table class="params-table">
+              <tr>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Rules</th>
+              </tr>
+              <tr>
+                <td>code</td>
+                <td>string</td>
+                <td><span class="req">required</span> alphanumeric, unique per event</td>
+              </tr>
+              <tr>
+                <td>name</td>
+                <td>string</td>
+                <td><span class="req">required</span> max 100</td>
+              </tr>
+              <tr>
+                <td>price</td>
+                <td>BigDecimal</td>
+                <td><span class="req">required</span> &gt; 0.00</td>
+              </tr>
+              <tr>
+                <td>quantity</td>
+                <td>integer</td>
+                <td><span class="req">required</span> 1 to 5000</td>
+              </tr>
+            </table>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">201 Created</span><span class="code-pill c4xx">400 Bad Request</span><span
+                class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="str">{</span>
+  <span class="key">"id"</span>: <span class="num">12</span>,
+  <span class="key">"eventId"</span>: <span class="num">1</span>,
+  <span class="key">"code"</span>: <span class="str">"VIP"</span>,
+  <span class="key">"name"</span>: <span class="str">"VIP Floor"</span>,
+  <span class="key">"price"</span>: <span class="num">350.00</span>,
+  <span class="key">"totalQuantity"</span>: <span class="num">100</span>,
+  <span class="key">"available"</span>: <span class="num">100</span>,
+  <span class="key">"held"</span>: <span class="num">0</span>,
+  <span class="key">"booked"</span>: <span class="num">0</span>,
+  <span class="key">"active"</span>: <span class="bool">true</span>
+<span class="str">}</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POST /api/admin/events/{eventId}/seat-types/{code}/seats -->
+    <div class="endpoint" id="ep-adm-add-seats">
+      <div class="endpoint-header" onclick="toggle('ep-adm-add-seats')">
+        <span class="method-badge POST">POST</span>
+        <span class="endpoint-path">/api/admin/events/<span class="path-param">{eventId}</span>/seat-types/<span
+            class="path-param">{code}</span>/seats</span>
+        <span class="endpoint-desc">Add more seats to an existing type</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="headers-box">
+          <strong>Header Required:</strong> <code>Authorization: Bearer &lt;admin-token&gt;</code>
+        </div>
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Request Body</h4>
+            <pre><span class="str">{</span>
+  <span class="key">"quantity"</span>: <span class="num">50</span>
+<span class="str">}</span></pre>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span><span class="code-pill c4xx">400 / 404</span><span
+                class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="null">// Returns updated SeatTypeResponse with new total quantity and seats generated</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATCH /api/admin/events/{eventId}/seat-types/{code} -->
+    <div class="endpoint" id="ep-adm-patch-seat-type">
+      <div class="endpoint-header" onclick="toggle('ep-adm-patch-seat-type')">
+        <span class="method-badge PATCH">PATCH</span>
+        <span class="endpoint-path">/api/admin/events/<span class="path-param">{eventId}</span>/seat-types/<span
+            class="path-param">{code}</span></span>
+        <span class="endpoint-desc">Update seat type metadata</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="endpoint-body">
+        <div class="headers-box">
+          <strong>Header Required:</strong> <code>Authorization: Bearer &lt;admin-token&gt;</code>
+        </div>
+        <div class="body-grid">
+          <div class="body-section">
+            <h4>Request Body (Optional fields)</h4>
+            <pre><span class="str">{</span>
+  <span class="key">"name"</span>: <span class="str">"VIP Gold Tier"</span>,
+  <span class="key">"description"</span>: <span class="str">"Includes backstage pass"</span>,
+  <span class="key">"price"</span>: <span class="num">550.00</span>,
+  <span class="key">"active"</span>: <span class="bool">true</span>
+<span class="str">}</span></pre>
+          </div>
+          <div class="body-section">
+            <h4>Response</h4>
+            <div><span class="code-pill c2xx">200 OK</span><span class="code-pill c4xx">400 / 404</span><span
+                class="code-pill c401">401 Unauthorized</span></div>
+            <pre><span class="null">// Returns updated SeatTypeResponse</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <button id="topBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+  <script>
+    function toggle(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+    window.addEventListener('scroll', () => {
+      document.getElementById('topBtn').classList.toggle('visible', window.scrollY > 300);
+    });
+    // Open first public and first admin endpoint by default
+    document.getElementById('ep-pub-events').classList.add('open');
+    document.getElementById('ep-auth-token').classList.add('open');
+  </script>
+
+</body>
+
+</html>
