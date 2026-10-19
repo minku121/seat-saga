@@ -17,7 +17,6 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -39,32 +38,19 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
     setLoading(true);
     setError("");
     setSuccessMsg("");
 
     try {
-      const endpoint = isSignup
-        ? `${API_URL}/register`
-        : `${API_URL}/login`;
-
+      const endpoint = isSignup ? `${API_URL}/register` : `${API_URL}/login`;
       const body = isSignup
-        ? {
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            password,
-          }
-        : {
-            email: email.trim().toLowerCase(),
-            password,
-          };
+        ? { name: name.trim(), email: email.trim().toLowerCase(), password }
+        : { email: email.trim().toLowerCase(), password };
 
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
@@ -73,35 +59,25 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-            data?.error ||
-            (isSignup ? "Failed to create account" : "Invalid email or password")
+          data?.error ||
+          (isSignup ? "Failed to create account" : "Invalid email or password")
         );
       }
 
-      // -------------------------
-      // SIGNUP SUCCESS
-      // -------------------------
       if (isSignup) {
         router.push("/auth/login?registered=true");
         return;
       }
 
-      // -------------------------
-      // LOGIN SUCCESS
-      // -------------------------
       const token = data?.token || (typeof data === "string" ? data : null);
-
       if (!token) {
-        throw new Error(
-          "Login succeeded but no access token was returned by the server."
-        );
+        throw new Error("Login succeeded but no access token was returned by the server.");
       }
 
       const decoded = decodeToken(token);
       const userName = data?.name || data?.user?.name || decoded?.name || name || email.split("@")[0];
       const userEmail = data?.email || data?.user?.email || decoded?.sub || email;
 
-      // Update auth context + localStorage + cookies
       login(token, {
         name: userName,
         email: userEmail,
@@ -111,9 +87,7 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
       router.push(redirectTarget);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again."
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -126,9 +100,7 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
         Seat Saga
       </Link>
 
-      <h1>
-        {isSignup ? "Create your account" : "Log in"}
-      </h1>
+      <h1>{isSignup ? "Create your account" : "Log in"}</h1>
 
       {successMsg && (
         <div
@@ -192,11 +164,7 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
           />
         </label>
 
-        {isSignup && (
-          <small>
-            At least 6 characters.
-          </small>
-        )}
+        {isSignup && <small>At least 6 characters.</small>}
 
         {error && (
           <p
@@ -214,11 +182,7 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
           </p>
         )}
 
-        <button
-          type="submit"
-          className="btn primary"
-          disabled={loading}
-        >
+        <button type="submit" className="btn primary" disabled={loading}>
           {loading
             ? isSignup
               ? "Creating account..."
@@ -230,28 +194,13 @@ function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
       </form>
 
       <p className="switch">
-        {isSignup
-          ? "Already have an account? "
-          : "New to Seat Saga? "}
-
-        <Link
-          href={
-            isSignup
-              ? "/auth/login"
-              : "/signup"
-          }
-        >
-          {isSignup
-            ? "Log in"
-            : "Create an account"}
+        {isSignup ? "Already have an account? " : "New to Seat Saga? "}
+        <Link href={isSignup ? "/auth/login" : "/signup"}>
+          {isSignup ? "Log in" : "Create an account"}
         </Link>
       </p>
 
-      {error && (
-        <small>
-          Please check your details and try again.
-        </small>
-      )}
+      {error && <small>Please check your details and try again.</small>}
     </main>
   );
 }
@@ -263,4 +212,3 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
     </Suspense>
   );
 }
-

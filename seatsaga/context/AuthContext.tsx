@@ -27,15 +27,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const syncAuth = useCallback(() => {
     try {
       const storedToken = getStoredToken();
       if (storedToken && isTokenValid(storedToken)) {
-        const storedUser = getStoredUser();
         setToken(storedToken);
-        setUser(storedUser);
+        setUser(getStoredUser());
       } else {
         setToken(null);
         setUser(null);
@@ -51,7 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     syncAuth();
 
-    // Listen for cross-tab auth state changes
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "token" || e.key === "user") {
         syncAuth();
@@ -64,15 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [syncAuth]);
 
-  const login = useCallback(
-    (newToken: string, newUser: Partial<User>) => {
-      saveAuthStorage(newToken, newUser);
-      const activeUser = getStoredUser();
-      setToken(newToken);
-      setUser(activeUser);
-    },
-    []
-  );
+  const login = useCallback((newToken: string, newUser: Partial<User>) => {
+    saveAuthStorage(newToken, newUser);
+    setToken(newToken);
+    setUser(getStoredUser());
+  }, []);
 
   const logout = useCallback(() => {
     removeAuthStorage();
@@ -81,17 +75,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/auth/login");
   }, [router]);
 
-  const value: AuthContextType = {
-    user,
-    token,
-    isLoading,
-    isAuthenticated: Boolean(token && user),
-    login,
-    logout,
-    refreshAuth: syncAuth,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isAuthenticated: Boolean(token && user),
+        login,
+        logout,
+        refreshAuth: syncAuth,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextType {

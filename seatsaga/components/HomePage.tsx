@@ -1,20 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getFirstName } from "@/lib/auth";
-
-const shows = [
-  { date: "Oct 17", artist: "Nightbloom", venue: "Jio Garden Arena", city: "Mumbai", price: 2400 },
-  { date: "Oct 24", artist: "Aster Vale", venue: "Talkatora Hall", city: "Delhi", price: 1800 },
-  { date: "Nov 02", artist: "The Hollow Arc", venue: "Palace Grounds", city: "Bengaluru", price: 3200 },
-  { date: "Nov 14", artist: "Mira Okonkwo", venue: "Netaji Indoor", city: "Kolkata", price: 1500 },
-  { date: "Nov 28", artist: "Static Orchard", venue: "Hitex Arena", city: "Hyderabad", price: 2100 },
-];
+import { EventItem, listEvents } from "@/lib/inventoryApi";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const targetLink = isAuthenticated ? "/dashboard" : "/auth/login";
+  const [events, setEvents] = useState<EventItem[]>([]);
+
+  useEffect(() => {
+    listEvents().then((data) => setEvents(data || [])).catch(() => {});
+  }, []);
 
   return (
     <>
@@ -56,19 +55,31 @@ export default function Home() {
         <section id="shows" className="section">
           <h2>On sale now</h2>
           <ul className="shows">
-            {shows.map((s) => (
-              <li key={s.artist}>
-                <Link href={targetLink}>
-                  <time>{s.date}</time>
-                  <strong>{s.artist}</strong>
-                  <span className="where">
-                    {s.venue}, {s.city}
-                  </span>
-                  <span className="price">From ₹{s.price.toLocaleString("en-IN")}</span>
-                  <span className="book">Book seats</span>
-                </Link>
+            {events.length === 0 ? (
+              <li style={{ padding: "2rem 0", color: "var(--dim)" }}>
+                Loading live shows from inventory service...
               </li>
-            ))}
+            ) : (
+              events.map((s) => {
+                const dateStr = s.eventDate
+                  ? new Date(s.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                  : "Live";
+
+                return (
+                  <li key={s.id}>
+                    <Link href={`/events/${s.id}`}>
+                      <time>{dateStr}</time>
+                      <strong>{s.name}</strong>
+                      <span className="where">
+                        {s.venue}
+                      </span>
+                      <span className="price">Cap: {s.maxCapacity.toLocaleString()}</span>
+                      <span className="book">Book seats</span>
+                    </Link>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </section>
 
@@ -100,4 +111,4 @@ export default function Home() {
       </main>
     </>
   );
-}
+}
