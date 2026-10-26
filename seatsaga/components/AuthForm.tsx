@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { decodeToken } from "@/lib/auth";
+import { SERVICES } from "@/lib/services";
 
-const API_URL = "https://seat-saga.onrender.com/api/auth";
+const API_URL = `${SERVICES.auth}/api/auth`;
 
 function AuthFormInner({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();

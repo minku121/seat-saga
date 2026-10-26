@@ -1,3 +1,5 @@
+import { SERVICES } from "./services";
+
 export interface EventItem {
   id: number;
   name: string;
@@ -81,12 +83,12 @@ const ADMIN_TOKEN_STORAGE_KEY = "seatsaga_admin_jwt";
 const ADMIN_TOKEN_EXP_KEY = "seatsaga_admin_jwt_exp";
 const DEFAULT_ADMIN_SECRET = "admin-key";
 
+
 export function getInventoryBaseUrl(): string {
   if (typeof window !== "undefined") {
     return "/api/inventory";
   }
-  const rawUrl = process.env.INVENTORY_API_URL || "https://seat-saga-inventory.onrender.com";
-  return `${rawUrl.replace(/\/+$/, "")}/api`;
+  return `${SERVICES.inventory}/api`;
 }
 
 export function setCachedAdminToken(token: string, expiresInSec = 86400): void {
@@ -121,65 +123,81 @@ async function request<T>(
   options: RequestInit = {},
   token?: string | null
 ): Promise<{ data: T; status: number; durationMs: number }> {
-  const baseUrl = getInventoryBaseUrl();
-  const url = `${baseUrl}${path}`;
-  const start = Date.now();
+  const directUrl = `${SERVICES.inventory}/api${path}`;
+  const proxyUrl = `/api/inventory${path}`;
 
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...(options.headers as Record<string, string>),
-  };
+  const candidateUrls: string[] =
+    typeof window !== "undefined"
+      ? [proxyUrl, directUrl]
+      : [directUrl];
 
-  if (options.body && typeof options.body === "string" && !headers["Content-Type"]) {
-    headers["Content-Type"] = "application/json";
+  let lastError: Error | null = null;
+
+  for (const url of candidateUrls) {
+    const start = Date.now();
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...(options.headers as Record<string, string>),
+    };
+
+    if (options.body && typeof options.body === "string" && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers,
+      });
+      const durationMs = Date.now() - start;
+
+      if (res.status === 204) {
+        return { data: null as unknown as T, status: 204, durationMs };
+      }
+
+      const contentType = res.headers.get("content-type");
+      let json: unknown = null;
+      if (contentType && contentType.includes("application/json")) {
+        json = await res.json().catch(() => null);
+      } else {
+        const text = await res.text().catch(() => "");
+        json = text ? { message: text } : null;
+      }
+
+      if (!res.ok) {
+        if (candidateUrls.length > 1 && url === proxyUrl && (res.status === 502 || res.status === 404)) {
+          continue;
+        }
+
+        const errObj = json as Record<string, unknown> | null;
+        const errorMsg =
+          (errObj?.message as string) ||
+          (errObj?.error as string) ||
+          `Request to ${path} failed with status ${res.status}`;
+        const err = new Error(errorMsg);
+        (err as unknown as { status: number; body: unknown }).status = res.status;
+        (err as unknown as { status: number; body: unknown }).body = json;
+        throw err;
+      }
+
+      return { data: json as T, status: res.status, durationMs };
+    } catch (err: unknown) {
+      lastError = err as Error;
+      continue;
+    }
   }
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  const msg = lastError?.message || "";
+  if (msg.includes("Failed to fetch") || msg.includes("fetch failed") || msg.includes("ECONNREFUSED")) {
+    throw new Error(
+      `Could not connect to Inventory Service (${SERVICES.inventory}). Service may be waking up, please retry.`
+    );
   }
-
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers,
-    });
-    const durationMs = Date.now() - start;
-
-    if (res.status === 204) {
-      return { data: null as unknown as T, status: 204, durationMs };
-    }
-
-    const contentType = res.headers.get("content-type");
-    let json: unknown = null;
-    if (contentType && contentType.includes("application/json")) {
-      json = await res.json().catch(() => null);
-    } else {
-      const text = await res.text().catch(() => "");
-      json = text ? { message: text } : null;
-    }
-
-    if (!res.ok) {
-      const errObj = json as Record<string, unknown> | null;
-      const errorMsg =
-        (errObj?.message as string) ||
-        (errObj?.error as string) ||
-        `Request to ${path} failed with status ${res.status}`;
-      const err = new Error(errorMsg);
-      (err as unknown as { status: number; body: unknown }).status = res.status;
-      (err as unknown as { status: number; body: unknown }).body = json;
-      throw err;
-    }
-
-    return { data: json as T, status: res.status, durationMs };
-  } catch (err: unknown) {
-    const msg = (err as Error)?.message || "";
-    if (msg.includes("Failed to fetch") || msg.includes("fetch failed") || msg.includes("ECONNREFUSED")) {
-      throw new Error(
-        "Could not connect to Inventory Service (https://seat-saga-inventory.onrender.com). Please check service status."
-      );
-    }
-    throw err;
-  }
+  throw lastError || new Error(`Request to ${path} failed`);
 }
 
 export async function getAdminToken(secret = DEFAULT_ADMIN_SECRET): Promise<AdminTokenResponse> {

@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getFirstName, getUserInitials } from "@/lib/auth";
 import { EventItem, listEvents } from "@/lib/inventoryApi";
-import LiveEventsView from "./LiveEventsView";
 
 type Tab = "events" | "mine";
 
@@ -15,8 +14,13 @@ export default function Dashboard() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState<Tab>("events");
-  const [backendEvents, setBackendEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [errorEvents, setErrorEvents] = useState<string | null>(null);
+
   const [tickets, setTickets] = useState<number[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -24,11 +28,25 @@ export default function Dashboard() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  useEffect(() => {
-    listEvents()
-      .then((evs) => setBackendEvents(evs || []))
-      .catch(() => {});
+  const loadEvents = useCallback(async () => {
+    setLoadingEvents(true);
+    setErrorEvents(null);
+    try {
+      const data = await listEvents();
+      setEvents(data || []);
+    } catch (err: unknown) {
+      setErrorEvents(
+        (err as Error)?.message ||
+          "Could not connect to Inventory Service. If the service is waking up, please retry in a moment."
+      );
+    } finally {
+      setLoadingEvents(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   useEffect(() => {
     if (user?.email) {
@@ -54,6 +72,25 @@ export default function Dashboard() {
       return updated;
     });
   };
+
+  const filteredEvents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return events.filter((ev) => {
+      const matchesSearch =
+        !q ||
+        ev.name.toLowerCase().includes(q) ||
+        (ev.venue && ev.venue.toLowerCase().includes(q)) ||
+        (ev.description && ev.description.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+
+      if (statusFilter !== "ALL") {
+        return (ev.status || "PUBLISHED").toUpperCase() === statusFilter;
+      }
+
+      return true;
+    });
+  }, [events, search, statusFilter]);
 
   if (isLoading || !isAuthenticated || !user) {
     return (
@@ -150,7 +187,7 @@ export default function Dashboard() {
         <div style={{ marginBottom: "1.5rem" }}>
           <h1>Hi {firstName}, welcome to SeatSaga</h1>
           <p style={{ color: "var(--dim)", fontSize: "0.95rem", marginTop: "-1.25rem" }}>
-            Browse live shows, pick your seating tier, and reserve tickets.
+            Live events powered by your inventory service. Pick seats and reserve tickets.
           </p>
         </div>
 
@@ -159,78 +196,222 @@ export default function Dashboard() {
             role="tab"
             aria-selected={activeTab === "events"}
             onClick={() => setActiveTab("events")}
-            style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}
           >
-            <span>🎟️</span>
-            <span>Live Shows</span>
+            Live Shows ({events.length})
           </button>
 
           <button
             role="tab"
             aria-selected={activeTab === "mine"}
             onClick={() => setActiveTab("mine")}
-            style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}
           >
-            <span>🎫</span>
-            <span>My Bookings ({tickets.length})</span>
+            My Bookings ({tickets.length})
           </button>
         </div>
 
-        {activeTab === "events" && <LiveEventsView bookedTicketIds={tickets} />}
-
-        {activeTab === "mine" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <div>
-              <h2 style={{ fontSize: "1.3rem", fontWeight: 700, margin: 0 }}>
-                Your Reserved Tickets
-              </h2>
-              <p style={{ fontSize: "0.85rem", color: "var(--dim)", margin: "0.2rem 0 0 0" }}>
-                Shows booked during your sessions.
-              </p>
+        {activeTab === "events" && (
+          <div>
+            <div className="filters" style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+              <input
+                type="search"
+                placeholder="Search events, venues or artists..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn"
+                onClick={loadEvents}
+                disabled={loadingEvents}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {loadingEvents ? "Refreshing..." : "↻ Refresh"}
+              </button>
             </div>
 
-            {tickets.length === 0 ? (
+            <div className="chips">
+              {["ALL", "PUBLISHED", "DRAFT"].map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  aria-pressed={statusFilter === st}
+                  onClick={() => setStatusFilter(st)}
+                >
+                  {st === "ALL" ? "All Events" : st}
+                </button>
+              ))}
+            </div>
+
+            {loadingEvents && events.length === 0 && (
               <div
                 style={{
                   padding: "3rem",
+                  textAlign: "center",
                   border: "1px dashed var(--line)",
                   borderRadius: "14px",
-                  textAlign: "center",
                   color: "var(--dim)",
                 }}
               >
-                You haven&apos;t booked any tickets yet. Switch to Live Shows to browse available events.
+                <div
+                  style={{
+                    width: "28px",
+                    height: "28px",
+                    border: "3px solid rgba(236, 235, 230, 0.15)",
+                    borderTopColor: "var(--glow)",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                    margin: "0 auto 1rem",
+                  }}
+                />
+                Connecting to inventory service...
               </div>
+            )}
+
+            {errorEvents && (
+              <div
+                style={{
+                  padding: "1.2rem 1.4rem",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "12px",
+                  marginBottom: "1.5rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "1rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <strong style={{ color: "#f87171", display: "block", marginBottom: "0.2rem" }}>
+                    Service Notice
+                  </strong>
+                  <span style={{ fontSize: "0.88rem", color: "var(--fg)" }}>{errorEvents}</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={loadEvents}
+                  style={{ borderColor: "#f87171", color: "#f87171" }}
+                >
+                  Retry Connection
+                </button>
+              </div>
+            )}
+
+            {!loadingEvents && filteredEvents.length === 0 && !errorEvents && (
+              <p className="empty">
+                {events.length === 0
+                  ? "No events found in your inventory service yet."
+                  : "No events matching your search filter."}
+              </p>
+            )}
+
+            <ul className="grid">
+              {filteredEvents.map((ev) => {
+                const isBooked = tickets.includes(ev.id);
+                const dateStr = ev.eventDate
+                  ? new Date(ev.eventDate).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "Date TBA";
+
+                return (
+                  <li key={ev.id}>
+                    <div className="meta">
+                      <time>{dateStr}</time>
+                      <span
+                        style={{
+                          textTransform: "uppercase",
+                          fontSize: "0.75rem",
+                          letterSpacing: "0.05em",
+                          color: ev.status === "PUBLISHED" ? "var(--glow)" : "var(--dim)",
+                        }}
+                      >
+                        {ev.status || "LIVE"}
+                      </span>
+                    </div>
+
+                    <h3>{ev.name}</h3>
+
+                    {ev.description && (
+                      <p style={{ fontSize: "0.85rem", color: "var(--dim)", margin: "0.2rem 0" }}>
+                        {ev.description}
+                      </p>
+                    )}
+
+                    <p className="where">📍 {ev.venue || "Main Arena"}</p>
+
+                    <div style={{ fontSize: "0.82rem", color: "var(--dim)" }}>
+                      Max Capacity: <strong>{(ev.maxCapacity || 0).toLocaleString()}</strong>
+                    </div>
+
+                    <div className="foot">
+                      <Link href={`/events/${ev.id}`} className="btn">
+                        Select seats
+                      </Link>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => toggleTicket(ev.id)}
+                        style={
+                          isBooked
+                            ? { borderColor: "#f87171", color: "#f87171" }
+                            : { borderColor: "var(--glow)", color: "var(--glow)" }
+                        }
+                      >
+                        {isBooked ? "Cancel booking" : "Quick book"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {activeTab === "mine" && (
+          <div>
+            {tickets.length === 0 ? (
+              <p className="empty">
+                You haven&apos;t booked any tickets yet. Switch to &ldquo;Live Shows&rdquo; to browse events.
+              </p>
             ) : (
               <ul className="grid">
                 {tickets.map((ticketId) => {
-                  const ev = backendEvents.find((e) => e.id === ticketId);
-                  const title = ev ? ev.name : `Live Event #${ticketId}`;
-                  const venue = ev ? ev.venue : "Main Venue";
-                  const dateStr = ev?.eventDate
-                    ? new Date(ev.eventDate).toLocaleDateString("en-IN", {
-                        day: "numeric",
+                  const ev = events.find((item) => item.id === ticketId);
+                  const title = ev ? ev.name : `Event #${ticketId}`;
+                  const where = ev ? ev.venue : "Main Venue";
+                  const date = ev?.eventDate
+                    ? new Date(ev.eventDate).toLocaleDateString("en-US", {
                         month: "short",
-                        year: "numeric",
+                        day: "numeric",
                       })
                     : "Confirmed Show";
 
                   return (
                     <li key={ticketId}>
                       <div className="meta">
-                        <time>{dateStr}</time>
-                        <span>Confirmed</span>
+                        <time>{date}</time>
+                        <span style={{ color: "var(--glow)" }}>Confirmed</span>
                       </div>
                       <h3>{title}</h3>
-                      <p className="where">📍 {venue}</p>
+                      <p className="where">📍 {where}</p>
                       <div className="foot">
-                        <strong>Live Entry Confirmed</strong>
+                        <Link href={`/events/${ticketId}`} className="btn">
+                          View event
+                        </Link>
                         <button
+                          type="button"
                           className="btn"
                           onClick={() => toggleTicket(ticketId)}
                           style={{ borderColor: "#f87171", color: "#f87171" }}
                         >
-                          Cancel Booking
+                          Cancel booking
                         </button>
                       </div>
                     </li>
