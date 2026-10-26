@@ -279,6 +279,26 @@
 }</pre>
     </section>
 
+    <h2>Seat hold API</h2>
+
+    <section class="card public">
+      <div class="endpoint">
+        <span class="method">POST</span>/api/seat/held-seat
+      </div>
+      <p>Holds seats for a user. The passed <code>userId</code> is stored directly in the <code>held_by_user_id</code> column (no user JWT required).</p>
+
+      <pre>{
+  "eventId": 1,
+  "seatTypeCode": "VIP",
+  "quantity": 2,
+  "userId": 42
+}</pre>
+
+      <p>
+        Ensures seat availability, increments the held count in inventory atomically, and returns the held seats with a 10-minute hold expiration timestamp and mapped <code>heldByUserId</code>.
+      </p>
+    </section>
+
     <h2>Common HTTP responses</h2>
 
     <ul>

@@ -25,7 +25,7 @@ public class JwtUtil {
     private final String rawSecret;
     private final long expirationMs = 24 * 60 * 60 * 1000L; // 24 hours
 
-    public JwtUtil(@Value("${jwt.secret:admin-key}") String secret) {
+    public JwtUtil(@Value("${jwt.secret:admin-password}") String secret) {
         this.rawSecret = secret;
         this.verificationKeys = new ArrayList<>();
 

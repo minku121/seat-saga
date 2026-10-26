@@ -28,4 +28,21 @@ public class SeatTypeController {
     public ResponseEntity<List<SeatTypeResponse>> listSeatTypes(@PathVariable Long eventId) {
         return ResponseEntity.ok(seatTypeService.listByEvent(eventId));
     }
+
+    @GetMapping("/{seatTypeCode}/availability")
+    public ResponseEntity<Boolean> isSeatAvailable(
+            @PathVariable Long eventId,
+            @PathVariable String seatTypeCode,
+            @RequestParam int quantity) {
+
+        if (quantity <= 0) {
+            return ResponseEntity.badRequest().body(false);
+        }
+
+        boolean available = seatTypeService.isSeatAvailable(
+                eventId, seatTypeCode, quantity
+        );
+
+        return ResponseEntity.ok(available);
+    }
 }

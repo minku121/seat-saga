@@ -99,4 +99,40 @@ public class SeatTypeService {
                     + " (already allocated " + existing + ")");
         }
     }
+
+    public boolean isSeatAvailable(
+            Long eventId,
+            String seatTypeCode,
+            int quantity) {
+
+        if (quantity <= 0) {
+            return false;
+        }
+
+        boolean isEventValid = eventRepo.existsById(eventId);
+
+        if (!isEventValid) {
+            return false;
+        }
+
+        boolean isSeatTypeValid =
+                seatTypeRepo.existsByEvent_IdAndCode(
+                        eventId, seatTypeCode
+                );
+
+        if (!isSeatTypeValid) {
+            return false;
+        }
+
+        SeatType seatType = seatTypeRepo
+                .findByEvent_IdAndCode(eventId, seatTypeCode)
+                .orElseThrow();
+
+        int availableQuantity = seatType.getTotalQuantity()
+                - seatType.getHeldQuantity()
+                - seatType.getBookedQuantity();
+
+        return availableQuantity >= quantity;
+    }
+
 }

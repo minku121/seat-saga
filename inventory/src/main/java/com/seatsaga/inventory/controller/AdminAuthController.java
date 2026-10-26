@@ -8,11 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * Controller to generate Admin JWT tokens using the configured admin-key secret.
- *
- * POST /api/admin/token
- */
+
 @RestController
 @RequestMapping("/api/admin")
 public class AdminAuthController {
@@ -25,12 +21,7 @@ public class AdminAuthController {
         this.expectedSecret = expectedSecret;
     }
 
-    /**
-     * Generate an admin JWT by providing the secret key.
-     * Can be provided in JSON body: {"secret":"admin-key"}
-     * or query parameter: ?secret=admin-key
-     * or header: X-Admin-Key: admin-key
-     */
+    
     @PostMapping("/token")
     public ResponseEntity<?> generateToken(
             @RequestBody(required = false) Map<String, String> body,

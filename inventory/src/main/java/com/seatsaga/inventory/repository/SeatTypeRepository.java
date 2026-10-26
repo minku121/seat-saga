@@ -61,3 +61,6 @@ public interface SeatTypeRepository extends JpaRepository<SeatType, Long> {
         """)
     int releaseBooked(@Param("id") Long id, @Param("qty") int qty);
 }
+
+
+
