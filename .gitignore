@@ -1,0 +1,6 @@
+# Root gitignore
+**/application.properties
+**/application.yml
+**/application.yaml
+.env
+.env.*
