@@ -5,14 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
+import org.springframework.boot.web.server.ConfigurableWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
-import org.springframework.boot.web.servlet.server.ConfigurableServletWebServerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.orm.jpa.JpaVendorAdapter;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
 import javax.sql.DataSource;
-import java.util.Map;
 
 @Configuration
 public class DatabaseConfig {
@@ -32,13 +32,12 @@ public class DatabaseConfig {
     private int serverPort;
 
     @Bean
-    public HibernatePropertiesCustomizer hibernatePropertiesCustomizer() {
-        return (Map<String, Object> hibernateProperties) -> {
-            hibernateProperties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
-            hibernateProperties.put("hibernate.hbm2ddl.auto", "update");
-            hibernateProperties.put("hibernate.show_sql", "true");
-            hibernateProperties.put("hibernate.format_sql", "true");
-        };
+    public JpaVendorAdapter jpaVendorAdapter() {
+        HibernateJpaVendorAdapter adapter = new HibernateJpaVendorAdapter();
+        adapter.setDatabasePlatform("org.hibernate.dialect.PostgreSQLDialect");
+        adapter.setGenerateDdl(true);
+        adapter.setShowSql(true);
+        return adapter;
     }
 
     @Bean
@@ -57,7 +56,7 @@ public class DatabaseConfig {
     }
 
     @Bean
-    public WebServerFactoryCustomizer<ConfigurableServletWebServerFactory> webServerFactoryCustomizer() {
+    public WebServerFactoryCustomizer<ConfigurableWebServerFactory> webServerFactoryCustomizer() {
         return factory -> {
             log.info("Setting server port to: {}", serverPort);
             factory.setPort(serverPort);
