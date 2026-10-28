@@ -27,8 +27,8 @@ public class SeatEventConsumer {
 
     @KafkaListener(
             id = "seat-event-consumer",
-            topics = "${app.kafka.topics.seats-held}",
-            groupId = "${spring.kafka.consumer.group-id}"
+            topics = "${app.kafka.topics.seats-held:seat-status}",
+            groupId = "${spring.kafka.consumer.group-id:payment-service}"
     )
     public void consume(SeatHeldEvent event) {
         consumedCount.incrementAndGet();

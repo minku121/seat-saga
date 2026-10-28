@@ -30,13 +30,13 @@ public class PaymentController {
     @Autowired(required = false)
     private KafkaListenerEndpointRegistry kafkaListenerEndpointRegistry;
 
-    @Value("${app.kafka.topics.seats-held}")
+    @Value("${app.kafka.topics.seats-held:seat-status}")
     private String seatsHeldTopic;
 
     @Value("${app.kafka.topics.payment-status:payment-status}")
     private String paymentStatusTopic;
 
-    @Value("${spring.kafka.consumer.group-id}")
+    @Value("${spring.kafka.consumer.group-id:payment-service}")
     private String consumerGroupId;
 
     public PaymentController(

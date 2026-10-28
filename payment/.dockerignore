@@ -9,10 +9,5 @@ mvnw.cmd
 HELP.md
 Dockerfile
 .dockerignore
-**/application.properties
-**/application.yml
-**/application.yaml
-application.properties
-application.yml
-application.yaml
-
+.env
+.env.*
