@@ -7,11 +7,13 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SeatHeldEvent(
-        long eventId,
+        Long eventId,
         List<Long> seatIds,
         List<String> seatNumbers,
-        long userId,
+        Long userId,
         String orderId,
         @JsonAlias("amount")
-        BigDecimal totalAmount
+        BigDecimal totalAmount,
+        String status,
+        Integer quantity
 ) {}

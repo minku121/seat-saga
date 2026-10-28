@@ -83,14 +83,20 @@ public class Payment {
         this.createdAt = Instant.now();
     }
 
+    /**
+     * Called when Razorpay order (payment intent) is created.
+     * Sets gatewayOrderId (order_xxx). gatewayPaymentId (pay_xxx) is NOT set here —
+     * it only comes back via the Razorpay webhook after the customer pays.
+     */
     public void markInitiated(String razorpayOrderId) {
         this.gatewayOrderId = razorpayOrderId;
-        if (this.gatewayPaymentId == null) {
-            this.gatewayPaymentId = razorpayOrderId;
-        }
         this.status = "INITIATED";
     }
 
+    /**
+     * Called when Razorpay fires payment.captured or order.paid webhook.
+     * Sets gatewayPaymentId (pay_xxx) and marks status SUCCESS.
+     */
     public void markSuccess(String razorpayPaymentId) {
         if (razorpayPaymentId != null && !razorpayPaymentId.isBlank()) {
             this.gatewayPaymentId = razorpayPaymentId;
@@ -98,6 +104,9 @@ public class Payment {
         this.status = "SUCCESS";
     }
 
+    /**
+     * Called when payment intent creation fails or Razorpay fires payment.failed webhook.
+     */
     public void markFailed(String reason) {
         this.status = "FAILED";
     }

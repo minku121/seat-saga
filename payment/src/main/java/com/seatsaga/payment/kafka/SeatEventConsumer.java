@@ -1,4 +1,3 @@
-
 package com.seatsaga.payment.kafka;
 
 import com.seatsaga.payment.dto.SeatHeldEvent;
@@ -28,9 +27,26 @@ public class SeatEventConsumer {
     @KafkaListener(
             id = "seat-event-consumer",
             topics = "${app.kafka.topics.seats-held:seat-status}",
-            groupId = "${spring.kafka.consumer.group-id:payment-service}"
+            groupId = "${spring.kafka.consumer.group-id:payment-service}",
+            containerFactory = "kafkaListenerContainerFactory"
     )
     public void consume(SeatHeldEvent event) {
+        if (event == null) {
+            log.warn("Received null SeatHeldEvent, skipping");
+            return;
+        }
+
+        // Only process events intended for seat holding (status is HELD or empty)
+        if (event.status() != null && !event.status().isBlank() && !"HELD".equalsIgnoreCase(event.status())) {
+            log.info("Ignoring non-HELD seat event: status={}, orderId={}", event.status(), event.orderId());
+            return;
+        }
+
+        if (event.orderId() == null || event.orderId().isBlank()) {
+            log.warn("Ignoring SeatHeldEvent with missing or blank orderId: {}", event);
+            return;
+        }
+
         consumedCount.incrementAndGet();
         this.lastConsumedEvent = event;
         this.lastError = null;
@@ -39,7 +55,7 @@ public class SeatEventConsumer {
                 event.orderId(), event.eventId(), event.userId(), event.totalAmount(), event.seatNumbers());
         try {
             paymentService.processPayment(event);
-            log.info("Successfully processed SeatHeldEvent for orderId: {}", event.orderId());
+            log.info("Successfully processed SeatHeldEvent and created payment intent for orderId: {}", event.orderId());
         } catch (Exception e) {
             this.lastError = e.getMessage();
             log.error("Failed to process SeatHeldEvent for orderId: {}", event.orderId(), e);

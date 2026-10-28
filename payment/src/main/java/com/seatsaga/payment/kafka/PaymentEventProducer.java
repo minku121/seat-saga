@@ -37,7 +37,14 @@ public class PaymentEventProducer {
         }
 
         String status = payment.getStatus() != null ? payment.getStatus().toUpperCase() : "UNKNOWN";
-        String bookingStatus = "SUCCESS".equalsIgnoreCase(status) ? "CONFIRMED" : "CANCELLED";
+        String bookingStatus;
+        if ("SUCCESS".equalsIgnoreCase(status)) {
+            bookingStatus = "CONFIRMED";
+        } else if ("FAILED".equalsIgnoreCase(status)) {
+            bookingStatus = "CANCELLED";
+        } else {
+            bookingStatus = "PENDING";
+        }
 
         PaymentStatusEvent event = new PaymentStatusEvent(
                 payment.getOrderId(),

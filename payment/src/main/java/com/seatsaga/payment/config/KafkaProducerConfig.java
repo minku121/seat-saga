@@ -27,40 +27,32 @@ public class KafkaProducerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducerConfig.class);
 
-    @Value("${spring.kafka.bootstrap-servers:kafka-2eb7b65-singhminku521-ce79.k.aivencloud.com:21866}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${spring.kafka.properties.sasl.jaas.config:${KAFKA_JAAS_CONFIG:}}")
+    @Value("${spring.kafka.properties.security.protocol:SASL_SSL}")
+    private String securityProtocol;
+
+    @Value("${spring.kafka.properties.sasl.mechanism:SCRAM-SHA-256}")
+    private String saslMechanism;
+
+    @Value("${spring.kafka.properties.sasl.jaas.config:}")
     private String jaasConfig;
 
-    @Value("${KAFKA_USERNAME:${spring.kafka.properties.sasl.username:}}")
+    @Value("${spring.kafka.properties.sasl.username:${KAFKA_USERNAME:}}")
     private String kafkaUsername;
 
-    @Value("${KAFKA_PASSWORD:${spring.kafka.properties.sasl.password:}}")
+    @Value("${spring.kafka.properties.sasl.password:${KAFKA_PASSWORD:}}")
     private String kafkaPassword;
 
-    @Value("${spring.kafka.properties.ssl.truststore.certificates:}")
+    @Value("${spring.kafka.properties.ssl.truststore.certificates:${KAFKA_CA_CERT:}}")
     private String truststoreCertificates;
 
     @Value("${app.kafka.topics.payment-status:payment-status}")
     private String paymentStatusTopic;
 
-    private static final String DEFAULT_CA_CERT =
-            "-----BEGIN CERTIFICATE-----\n" +
-            "MIIBxDCCAWqgAwIBAgIUIcvYwp5dJ1Q8AkJT/KpfqjdUApcwCgYIKoZIzj0EAwMw\n" +
-            "QDE+MDwGA1UEAww1NDU0OTM1MzEtOWM4MS00MGEzLWEzYWItNGU3YjkzOTA0MTM1\n" +
-            "IFByb2plY3QgQ0EgR0VOIDIwHhcNMjYwODA1MjMzNTE0WhcNMzYwODAyMjMzNTE0\n" +
-            "WjBAMT4wPAYDVQQDDDU0NTQ5MzUzMS05YzgxLTQwYTMtYTNhYi00ZTdiOTM5MDQx\n" +
-            "MzUgUHJvamVjdCBDQSBHRU4gMjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABMCr\n" +
-            "fu2CQLbGNj6ngluZrfxQ6h8nW3PnEEWK/yWRtgd0w8bbbB8OsASS8AX1y3L3WS+7\n" +
-            "SL1hHikVpwO2k8iIG+CjQjBAMB0GA1UdDgQWBBR2rbE3NM24WG2g/+b85ZGJ7noX\n" +
-            "CDASBgNVHRMBAf8ECDAGAQH/AgEAMAsGA1UdDwQEAwIBBjAKBggqhkjOPQQDAwNI\n" +
-            "ADBFAiAXKnan4YpNPpzYGxnZrx7+4ZiHveTvLHv19558ICnZLgIhANrHNWSikK5c\n" +
-            "M5mkvpAIwgwlxv2tPS2IIrTyw4Vk7CAI\n" +
-            "-----END CERTIFICATE-----";
-
     public String resolveJaasConfig() {
-        if (jaasConfig != null && !jaasConfig.isBlank()) {
+        if (jaasConfig != null && !jaasConfig.isBlank() && !jaasConfig.contains("password=\"\"") && !jaasConfig.contains("password=''")) {
             return jaasConfig.trim();
         }
         if (kafkaUsername != null && !kafkaUsername.isBlank() && kafkaPassword != null && !kafkaPassword.isBlank()) {
@@ -80,19 +72,24 @@ public class KafkaProducerConfig {
             ClassPathResource certResource = new ClassPathResource("ca.pem");
             if (certResource.exists()) {
                 try (InputStream in = certResource.getInputStream()) {
-                    return new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+                    String cert = new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+                    if (!cert.isBlank()) {
+                        return cert;
+                    }
                 }
             }
         } catch (Exception e) {
             log.warn("Could not load ca.pem from classpath: {}", e.getMessage());
         }
-        return DEFAULT_CA_CERT;
+        return null;
     }
 
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        if (bootstrapServers != null && !bootstrapServers.isBlank()) {
+            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        }
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -100,14 +97,21 @@ public class KafkaProducerConfig {
 
         String jaas = resolveJaasConfig();
         if (jaas != null && !jaas.isBlank()) {
-            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
-            props.put("sasl.mechanism", "SCRAM-SHA-256");
+            String protocol = (securityProtocol != null && !securityProtocol.isBlank()) ? securityProtocol : "SASL_SSL";
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, protocol);
+            props.put("sasl.mechanism", (saslMechanism != null && !saslMechanism.isBlank()) ? saslMechanism : "SCRAM-SHA-256");
             props.put("sasl.jaas.config", jaas);
 
-            // SSL Truststore with PEM CA certificate
-            props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PEM");
-            props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG, resolveCaCertificate());
+            // SSL Truststore with PEM CA certificate if provided or available on classpath
+            String caCert = resolveCaCertificate();
+            if (caCert != null && !caCert.isBlank()) {
+                props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PEM");
+                props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG, caCert);
+            }
         } else {
+            if (securityProtocol != null && !securityProtocol.isBlank()) {
+                props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol);
+            }
             log.warn("Kafka producer SASL credentials not configured. Running in non-SASL mode.");
         }
 

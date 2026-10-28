@@ -1,4 +1,3 @@
-
 package com.seatsaga.payment.service;
 
 import com.seatsaga.payment.dto.SeatHeldEvent;
@@ -47,6 +46,7 @@ public class PaymentService {
             log.info("Payment record already exists for orderId: {} with status: {} (id: {}).",
                     payment.getOrderId(), payment.getStatus(), payment.getId());
             if ("INITIATED".equalsIgnoreCase(payment.getStatus()) && payment.getGatewayOrderId() != null) {
+                paymentEventProducer.publishPaymentStatus(payment, null);
                 return payment;
             }
             if ("SUCCESS".equalsIgnoreCase(payment.getStatus())) {
@@ -78,6 +78,11 @@ public class PaymentService {
             Payment savedPayment = paymentRepository.save(payment);
             log.info("Payment successfully updated to INITIATED with gatewayOrderId: {} for orderId: {}",
                     savedPayment.getGatewayOrderId(), savedPayment.getOrderId());
+
+            // Step 4: Publish INITIATED payment status event to Kafka
+            paymentEventProducer.publishPaymentStatus(savedPayment, null);
+            log.info("Published INITIATED payment status event to Kafka for orderId: {}", savedPayment.getOrderId());
+
             return savedPayment;
         } catch (Exception e) {
             log.error("Failed to create Razorpay payment intent for orderId: {}. Marking as FAILED.",
@@ -101,6 +106,7 @@ public class PaymentService {
         if ("INITIATED".equalsIgnoreCase(payment.getStatus()) && payment.getGatewayOrderId() != null) {
             log.info("Payment already initiated for orderId: {}, gatewayOrderId: {}",
                     orderId, payment.getGatewayOrderId());
+            paymentEventProducer.publishPaymentStatus(payment, null);
             return payment;
         }
 
@@ -110,6 +116,10 @@ public class PaymentService {
         Payment savedPayment = paymentRepository.save(payment);
         log.info("Payment intent created and marked INITIATED for orderId: {}, gatewayOrderId: {}",
                 savedPayment.getOrderId(), savedPayment.getGatewayOrderId());
+
+        // Publish INITIATED payment status event to Kafka
+        paymentEventProducer.publishPaymentStatus(savedPayment, null);
+        log.info("Published INITIATED payment status event to Kafka for orderId: {}", savedPayment.getOrderId());
 
         return savedPayment;
     }
@@ -150,7 +160,13 @@ public class PaymentService {
 
         String receipt = orderEntity != null ? orderEntity.optString("receipt") : null;
         if (receipt == null || receipt.isBlank()) {
-            receipt = paymentEntity != null ? paymentEntity.optString("notes.receipt") : null;
+            org.json.JSONObject notes = paymentEntity != null ? paymentEntity.optJSONObject("notes") : null;
+            if (notes != null) {
+                receipt = notes.optString("receipt", null);
+                if (receipt == null || receipt.isBlank()) {
+                    receipt = notes.optString("orderId", null);
+                }
+            }
         }
 
         log.info("Webhook event details: event={}, razorpayOrderId={}, razorpayPaymentId={}, receipt={}",
