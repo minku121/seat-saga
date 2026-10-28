@@ -228,6 +228,9 @@ export default function EventPage() {
           <Link href="/dashboard" className="pill">
             Shows
           </Link>
+          <Link href="/architecture" className="pill" style={{ opacity: 0.85 }}>
+            Architecture
+          </Link>
 
           {isAuthenticated && user ? (
             <div className="user-chip">

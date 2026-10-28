@@ -137,6 +137,21 @@ export default function Dashboard() {
         </Link>
 
         <nav style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <Link
+            href="/architecture"
+            style={{
+              color: "var(--dim)",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+              fontWeight: 500,
+              padding: "0.35rem 0.65rem",
+              borderRadius: "6px",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+            }}
+          >
+            Architecture
+          </Link>
+
           <div className="user-profile-chip">
             <div className="user-avatar" title={user.email}>
               {initials}

@@ -24,6 +24,9 @@ export default function Home() {
         <nav>
           <a href="#shows">Shows</a>
           <a href="#seats">Seat map</a>
+          <Link href="/architecture" style={{ color: "var(--dim)", textDecoration: "none", fontSize: "0.9rem" }}>
+            Architecture
+          </Link>
           {isAuthenticated && user ? (
             <Link href="/dashboard" className="pill" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
               <span>Dashboard ({getFirstName(user.name || user.email)})</span>

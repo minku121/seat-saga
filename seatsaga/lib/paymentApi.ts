@@ -55,11 +55,7 @@ export function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
-/**
- * Fetches the current payment status for an order from Payment Service.
- * Tries direct http://localhost:8084 (or PAYMENT_SERVICE_URL) first,
- * falling back to Next.js API proxy /api/payments if needed.
- */
+
 export async function getPaymentStatus(orderId: string): Promise<PaymentStatusResponse> {
   const encodedOrderId = encodeURIComponent(orderId);
   const directUrl = `${PAYMENT_SERVICE_URL}/api/payments/${encodedOrderId}/status`;
@@ -74,7 +70,7 @@ export async function getPaymentStatus(orderId: string): Promise<PaymentStatusRe
       return (await res.json()) as PaymentStatusResponse;
     }
   } catch {
-    // If direct fails (e.g. mixed content or network), try Next.js proxy
+
   }
 
   const proxyUrl = `/api/payments/${encodedOrderId}/status`;
