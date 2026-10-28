@@ -5,26 +5,39 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 public class KafkaProducerConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(KafkaProducerConfig.class);
+
     @Value("${spring.kafka.bootstrap-servers:kafka-2eb7b65-singhminku521-ce79.k.aivencloud.com:21866}")
     private String bootstrapServers;
 
-    @Value("${spring.kafka.properties.sasl.jaas.config:}")
+    @Value("${spring.kafka.properties.sasl.jaas.config:${KAFKA_JAAS_CONFIG:}}")
     private String jaasConfig;
+
+    @Value("${KAFKA_USERNAME:${spring.kafka.properties.sasl.username:}}")
+    private String kafkaUsername;
+
+    @Value("${KAFKA_PASSWORD:${spring.kafka.properties.sasl.password:}}")
+    private String kafkaPassword;
 
     @Value("${spring.kafka.properties.ssl.truststore.certificates:}")
     private String truststoreCertificates;
@@ -46,6 +59,36 @@ public class KafkaProducerConfig {
             "M5mkvpAIwgwlxv2tPS2IIrTyw4Vk7CAI\n" +
             "-----END CERTIFICATE-----";
 
+    public String resolveJaasConfig() {
+        if (jaasConfig != null && !jaasConfig.isBlank()) {
+            return jaasConfig.trim();
+        }
+        if (kafkaUsername != null && !kafkaUsername.isBlank() && kafkaPassword != null && !kafkaPassword.isBlank()) {
+            return String.format(
+                    "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";",
+                    kafkaUsername.trim(), kafkaPassword.trim()
+            );
+        }
+        return null;
+    }
+
+    private String resolveCaCertificate() {
+        if (truststoreCertificates != null && !truststoreCertificates.isBlank()) {
+            return truststoreCertificates.trim();
+        }
+        try {
+            ClassPathResource certResource = new ClassPathResource("ca.pem");
+            if (certResource.exists()) {
+                try (InputStream in = certResource.getInputStream()) {
+                    return new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not load ca.pem from classpath: {}", e.getMessage());
+        }
+        return DEFAULT_CA_CERT;
+    }
+
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -55,20 +98,18 @@ public class KafkaProducerConfig {
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
 
-        // Security Protocol & SASL Authentication
-        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
-        props.put("sasl.mechanism", "SCRAM-SHA-256");
+        String jaas = resolveJaasConfig();
+        if (jaas != null && !jaas.isBlank()) {
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+            props.put("sasl.mechanism", "SCRAM-SHA-256");
+            props.put("sasl.jaas.config", jaas);
 
-        if (jaasConfig != null && !jaasConfig.isBlank()) {
-            props.put("sasl.jaas.config", jaasConfig);
+            // SSL Truststore with PEM CA certificate
+            props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PEM");
+            props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG, resolveCaCertificate());
+        } else {
+            log.warn("Kafka producer SASL credentials not configured. Running in non-SASL mode.");
         }
-
-        // SSL Truststore with PEM CA certificate
-        props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PEM");
-        String cert = (truststoreCertificates != null && !truststoreCertificates.isBlank())
-                ? truststoreCertificates
-                : DEFAULT_CA_CERT;
-        props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG, cert);
 
         // Disable type headers so consumer services (like bookings) can deserialize cleanly
         props.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);

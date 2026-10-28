@@ -5,15 +5,20 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,19 +26,30 @@ import java.util.Map;
 @Configuration
 public class KafkaConsumerConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
+
     @Value("${spring.kafka.bootstrap-servers:kafka-2eb7b65-singhminku521-ce79.k.aivencloud.com:21866}")
     private String bootstrapServers;
 
     @Value("${spring.kafka.consumer.group-id:payment-service}")
     private String groupId;
 
-    @Value("${spring.kafka.properties.sasl.jaas.config:}")
+    @Value("${spring.kafka.properties.sasl.jaas.config:${KAFKA_JAAS_CONFIG:}}")
     private String jaasConfig;
+
+    @Value("${KAFKA_USERNAME:${spring.kafka.properties.sasl.username:}}")
+    private String kafkaUsername;
+
+    @Value("${KAFKA_PASSWORD:${spring.kafka.properties.sasl.password:}}")
+    private String kafkaPassword;
 
     @Value("${spring.kafka.properties.ssl.truststore.certificates:}")
     private String truststoreCertificates;
 
-    private static final String DEFAULT_CA_CERT = 
+    @Value("${spring.kafka.listener.auto-startup:true}")
+    private boolean autoStartup;
+
+    private static final String DEFAULT_CA_CERT =
             "-----BEGIN CERTIFICATE-----\n" +
             "MIIBxDCCAWqgAwIBAgIUIcvYwp5dJ1Q8AkJT/KpfqjdUApcwCgYIKoZIzj0EAwMw\n" +
             "QDE+MDwGA1UEAww1NDU0OTM1MzEtOWM4MS00MGEzLWEzYWItNGU3YjkzOTA0MTM1\n" +
@@ -47,6 +63,36 @@ public class KafkaConsumerConfig {
             "M5mkvpAIwgwlxv2tPS2IIrTyw4Vk7CAI\n" +
             "-----END CERTIFICATE-----";
 
+    public String resolveJaasConfig() {
+        if (jaasConfig != null && !jaasConfig.isBlank()) {
+            return jaasConfig.trim();
+        }
+        if (kafkaUsername != null && !kafkaUsername.isBlank() && kafkaPassword != null && !kafkaPassword.isBlank()) {
+            return String.format(
+                    "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"%s\" password=\"%s\";",
+                    kafkaUsername.trim(), kafkaPassword.trim()
+            );
+        }
+        return null;
+    }
+
+    private String resolveCaCertificate() {
+        if (truststoreCertificates != null && !truststoreCertificates.isBlank()) {
+            return truststoreCertificates.trim();
+        }
+        try {
+            ClassPathResource certResource = new ClassPathResource("ca.pem");
+            if (certResource.exists()) {
+                try (InputStream in = certResource.getInputStream()) {
+                    return new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not load ca.pem from classpath: {}", e.getMessage());
+        }
+        return DEFAULT_CA_CERT;
+    }
+
     @Bean
     public ConsumerFactory<String, SeatHeldEvent> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -55,20 +101,18 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 
-        // Security Protocol & SASL Authentication
-        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
-        props.put("sasl.mechanism", "SCRAM-SHA-256");
+        String jaas = resolveJaasConfig();
+        if (jaas != null && !jaas.isBlank()) {
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+            props.put("sasl.mechanism", "SCRAM-SHA-256");
+            props.put("sasl.jaas.config", jaas);
 
-        if (jaasConfig != null && !jaasConfig.isBlank()) {
-            props.put("sasl.jaas.config", jaasConfig);
+            // SSL Truststore with PEM CA certificate
+            props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PEM");
+            props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG, resolveCaCertificate());
+        } else {
+            log.warn("Kafka SASL credentials are not configured. Running in non-SASL mode.");
         }
-
-        // SSL Truststore with PEM CA certificate
-        props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PEM");
-        String cert = (truststoreCertificates != null && !truststoreCertificates.isBlank())
-                ? truststoreCertificates
-                : DEFAULT_CA_CERT;
-        props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG, cert);
 
         // Deserializer properties
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class.getName());
@@ -84,6 +128,12 @@ public class KafkaConsumerConfig {
         ConcurrentKafkaListenerContainerFactory<String, SeatHeldEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        if (resolveJaasConfig() == null) {
+            log.warn("Kafka credentials (KAFKA_PASSWORD/jaasConfig) not provided. Disabling auto-startup of seat-event-consumer listener so application can boot cleanly.");
+            factory.setAutoStartup(false);
+        } else {
+            factory.setAutoStartup(autoStartup);
+        }
         return factory;
     }
 }
