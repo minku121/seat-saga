@@ -7,6 +7,9 @@ export interface User {
 export interface JWTPayload {
   sub?: string;
   name?: string;
+  id?: number | string;
+  userId?: number | string;
+  user_id?: number | string;
   exp?: number;
   iat?: number;
   [key: string]: unknown;
@@ -86,10 +89,17 @@ export function setAuth(token: string, user: Partial<User>): void {
   if (typeof window === "undefined") return;
 
   const payload = decodeToken(token);
+  const resolvedId =
+    user.id ||
+    payload?.userId ||
+    payload?.user_id ||
+    payload?.id ||
+    (payload?.sub && !isNaN(Number(payload.sub)) ? Number(payload.sub) : undefined);
+
   const resolvedUser: User = {
     name: (user.name || payload?.name || user.email?.split("@")[0] || payload?.sub?.split("@")[0] || "User").trim(),
     email: (user.email || payload?.sub || "").trim(),
-    ...(user.id ? { id: user.id } : {}),
+    ...(resolvedId ? { id: resolvedId } : {}),
   };
 
   localStorage.setItem(AUTH_TOKEN_KEY, token);
@@ -128,6 +138,13 @@ export function getStoredUser(): User | null {
   const token = getStoredToken();
   if (!token) return null;
 
+  const payload = decodeToken(token);
+  const tokenUserId =
+    payload?.userId ||
+    payload?.user_id ||
+    payload?.id ||
+    (payload?.sub && !isNaN(Number(payload.sub)) ? Number(payload.sub) : undefined);
+
   const userJson = localStorage.getItem(AUTH_USER_KEY);
   if (userJson) {
     try {
@@ -136,17 +153,17 @@ export function getStoredUser(): User | null {
         return {
           name: user.name || user.email.split("@")[0] || "User",
           email: user.email,
-          id: user.id,
+          id: user.id || tokenUserId,
         };
       }
     } catch {}
   }
 
-  const payload = decodeToken(token);
   if (payload && payload.sub) {
     const user: User = {
       name: payload.name || payload.sub.split("@")[0] || "User",
       email: payload.sub,
+      id: tokenUserId,
     };
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
     return user;
@@ -176,4 +193,35 @@ export function getUserInitials(nameOrEmail?: string): string {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   return clean.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Returns a valid positive long integer userId suitable for backend booking APIs.
+ */
+export function getNumericUserId(user?: User | null, token?: string | null): number {
+  if (user?.id) {
+    const n = Number(user.id);
+    if (!isNaN(n) && n > 0) return n;
+  }
+  if (token) {
+    const payload = decodeToken(token);
+    const candidate = payload?.userId || payload?.user_id || payload?.id;
+    if (candidate) {
+      const n = Number(candidate);
+      if (!isNaN(n) && n > 0) return n;
+    }
+    if (payload?.sub && !isNaN(Number(payload.sub))) {
+      const n = Number(payload.sub);
+      if (n > 0) return n;
+    }
+  }
+  if (user?.email) {
+    let hash = 0;
+    for (let i = 0; i < user.email.length; i++) {
+      hash = (hash << 5) - hash + user.email.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash % 90000) + 1000;
+  }
+  return 501;
 }

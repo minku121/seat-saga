@@ -4,7 +4,7 @@ export const SERVICES = {
   auth: normalizeUrl(process.env.NEXT_PUBLIC_AUTH_SERVICE_URL) || "https://seat-saga-1xwb.onrender.com",
   inventory: normalizeUrl(process.env.NEXT_PUBLIC_INVENTORY_SERVICE_URL) || "https://seat-saga-inventory-stt9.onrender.com",
   booking: normalizeUrl(process.env.NEXT_PUBLIC_BOOKING_SERVICE_URL) || "https://seat-saga-booking.onrender.com",
-  payment: normalizeUrl(process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL) || "https://seat-saga-payment.onrender.com",
+  payment: normalizeUrl(process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL) || "https://seat-saga-demo-payment.onrender.com",
 };
 
 export const AUTH_SERVICE_URL = SERVICES.auth;
