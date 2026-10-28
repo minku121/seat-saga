@@ -31,12 +31,13 @@ public class KafkaProducerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducerConfig.class);
 
-    /**
-     * Inject Spring Boot's auto-configured ObjectMapper which already has
-     * JavaTimeModule registered — needed to serialize Instant in PaymentStatusEvent.
-     */
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return mapper;
+    }
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -96,7 +97,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public ProducerFactory<String, Object> producerFactory() {
+    public ProducerFactory<String, Object> producerFactory(ObjectMapper objectMapper) {
         Map<String, Object> props = new HashMap<>();
         if (bootstrapServers != null && !bootstrapServers.isBlank()) {
             props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -125,12 +126,8 @@ public class KafkaProducerConfig {
             log.warn("Kafka producer SASL credentials not configured. Running in non-SASL mode.");
         }
 
-        // Use ObjectMapper configured with JavaTimeModule so Instant fields serialize correctly
-        ObjectMapper mapper = (objectMapper != null ? objectMapper.copy() : new ObjectMapper());
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        JsonSerializer<Object> valueSerializer = new JsonSerializer<>(mapper);
+        // Use configured ObjectMapper bean (has JavaTimeModule) so Instant fields serialize correctly
+        JsonSerializer<Object> valueSerializer = new JsonSerializer<>(objectMapper);
         valueSerializer.setAddTypeInfo(false);
 
         return new DefaultKafkaProducerFactory<>(props, new StringSerializer(), valueSerializer);
