@@ -1,5 +1,8 @@
 package com.seatsaga.payment.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -7,6 +10,7 @@ import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +30,13 @@ import java.util.Map;
 public class KafkaProducerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaProducerConfig.class);
+
+    /**
+     * Inject Spring Boot's auto-configured ObjectMapper which already has
+     * JavaTimeModule registered — needed to serialize Instant in PaymentStatusEvent.
+     */
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
@@ -91,7 +102,6 @@ public class KafkaProducerConfig {
             props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         }
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
 
@@ -115,10 +125,15 @@ public class KafkaProducerConfig {
             log.warn("Kafka producer SASL credentials not configured. Running in non-SASL mode.");
         }
 
-        // Disable type headers so consumer services (like bookings) can deserialize cleanly
-        props.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        // Use ObjectMapper configured with JavaTimeModule so Instant fields serialize correctly
+        ObjectMapper mapper = (objectMapper != null ? objectMapper.copy() : new ObjectMapper());
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        return new DefaultKafkaProducerFactory<>(props);
+        JsonSerializer<Object> valueSerializer = new JsonSerializer<>(mapper);
+        valueSerializer.setAddTypeInfo(false);
+
+        return new DefaultKafkaProducerFactory<>(props, new StringSerializer(), valueSerializer);
     }
 
     @Bean

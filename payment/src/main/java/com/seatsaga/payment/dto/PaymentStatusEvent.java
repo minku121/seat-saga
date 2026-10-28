@@ -1,5 +1,6 @@
 package com.seatsaga.payment.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -20,6 +21,7 @@ public record PaymentStatusEvent(
         String gatewayOrderId,
         String gatewayPaymentId,
         String failureReason,
+        @JsonFormat(shape = JsonFormat.Shape.STRING)
         Instant timestamp
 ) {
 
