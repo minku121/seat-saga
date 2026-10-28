@@ -39,6 +39,7 @@ build/
 application.properties
 application.yml
 application.yaml
-
+application-*.properties
+application-*.yml
 .env
 .env.*
