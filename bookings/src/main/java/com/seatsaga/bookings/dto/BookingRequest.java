@@ -4,5 +4,5 @@ public record BookingRequest(
         long eventId,
         String seatTypeCode,
         int quantity,
-        long userId
+        Long userId
 ) {}

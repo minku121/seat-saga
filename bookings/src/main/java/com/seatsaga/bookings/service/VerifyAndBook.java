@@ -1,4 +1,3 @@
-
 package com.seatsaga.bookings.service;
 
 import com.seatsaga.bookings.kafka.SeatEventProducer;
@@ -13,7 +12,6 @@ import com.seatsaga.bookings.entity.PaymentStatus;
 import com.seatsaga.bookings.repository.BookingRepository;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -41,11 +39,20 @@ public class VerifyAndBook {
     }
 
     public BookingResponse checkAvailability(BookingRequest request) {
+        return checkAvailability(request, request.userId());
+    }
+
+    public BookingResponse checkAvailability(BookingRequest request, Long authenticatedUserId) {
 
         long eventId = request.eventId();
         String seatCode = request.seatTypeCode();
         int quantity = request.quantity();
-        long userId = request.userId();
+
+        // Always prioritize the authenticated user ID from the verified JWT
+        Long effectiveUserId = authenticatedUserId != null ? authenticatedUserId : request.userId();
+        if (effectiveUserId == null || effectiveUserId <= 0) {
+            throw new IllegalArgumentException("A valid authenticated userId is required");
+        }
 
         if (quantity <= 0) {
             throw new IllegalArgumentException(
@@ -73,7 +80,7 @@ public class VerifyAndBook {
                 eventId,
                 seatCode,
                 quantity,
-                userId,
+                effectiveUserId,
                 orderId
         );
 
@@ -107,7 +114,7 @@ public class VerifyAndBook {
         // 5. Save booking to PostgreSQL
         Booking booking = new Booking();
         booking.setOrderId(orderId);
-        booking.setUserId(userId);
+        booking.setUserId(effectiveUserId);
         booking.setEventId(eventId);
         booking.setSeatTypeCode(seatCode);
         booking.setQuantity(quantity);
@@ -122,7 +129,7 @@ public class VerifyAndBook {
                 eventId,
                 seatIds,
                 seatNumbers,
-                userId,
+                effectiveUserId,
                 orderId,
                 totalAmount
         );
@@ -134,7 +141,7 @@ public class VerifyAndBook {
                 seatCode,
                 quantity,
                 totalAmount,
-                userId,
+                effectiveUserId,
                 seatIds,
                 seatNumbers,
                 "SEATS_HELD"
