@@ -18,6 +18,7 @@ import {
   PaymentStatusResponse,
   RazorpaySuccessResponse,
 } from "@/lib/paymentApi";
+import { QrCode } from "lucide-react";
 
 type ModalState =
   | "IDLE"
@@ -659,14 +660,38 @@ export default function EventPage() {
             <div className="dialog-buttons">
               {modalState === "CONFIRMED" && (
                 <>
-                  <Link href="/dashboard" className="btn primary btn-full">
-                    View tickets →
+                  {heldBooking?.orderId ? (
+                    <Link
+                      href={`/tickets/${encodeURIComponent(heldBooking.orderId)}`}
+                      className="btn primary btn-full"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        background: "var(--glow)",
+                        color: "#000",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <QrCode size={16} />
+                      <span>View Ticket &amp; QR Pass →</span>
+                    </Link>
+                  ) : (
+                    <Link href="/dashboard" className="btn primary btn-full">
+                      View My Bookings →
+                    </Link>
+                  )}
+
+                  <Link href="/dashboard" className="btn btn-full" style={{ textAlign: "center" }}>
+                    All Bookings Dashboard
                   </Link>
+
                   <button
                     onClick={() => setModalState("IDLE")}
                     className="btn btn-ghost"
                   >
-                    Done
+                    Close
                   </button>
                 </>
               )}

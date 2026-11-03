@@ -15,10 +15,27 @@ async function proxy(
     : `${BOOKING_SERVICE_URL}/api/bookings${queryString}`;
 
   const headers = new Headers();
-  const authHeader = request.headers.get("authorization");
-  if (authHeader) headers.set("authorization", authHeader);
+
+  // Forward incoming Authorization header, or fall back to HTTP-only/cookie token
+  let authHeader = request.headers.get("authorization");
+  if (!authHeader) {
+    const cookieToken = request.cookies.get("token")?.value;
+    if (cookieToken) {
+      authHeader = `Bearer ${cookieToken}`;
+    }
+  }
+
+  if (authHeader) {
+    headers.set("authorization", authHeader);
+  }
+
   const contentType = request.headers.get("content-type");
-  if (contentType) headers.set("content-type", contentType);
+  if (contentType) {
+    headers.set("content-type", contentType);
+  } else if (request.method !== "GET" && request.method !== "HEAD") {
+    headers.set("content-type", "application/json");
+  }
+
   headers.set("accept", "application/json");
 
   const method = request.method;

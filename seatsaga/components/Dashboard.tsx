@@ -6,13 +6,14 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getFirstName, getUserInitials } from "@/lib/auth";
 import { EventItem, listEvents } from "@/lib/inventoryApi";
-import { StoredBooking, getStoredBookings } from "@/lib/bookingApi";
+import { StoredBooking, getStoredBookings, getMyBookings } from "@/lib/bookingApi";
+import { QrCode } from "lucide-react";
 
 type Tab = "events" | "mine";
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const { user, token, isLoading, isAuthenticated, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState<Tab>("events");
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [errorEvents, setErrorEvents] = useState<string | null>(null);
 
   const [heldBookings, setHeldBookings] = useState<StoredBooking[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
@@ -50,13 +52,64 @@ export default function Dashboard() {
     loadEvents();
   }, [loadEvents]);
 
-  useEffect(() => {
-    if (user?.email) {
-      setHeldBookings(getStoredBookings(user.email));
-    } else {
+  const loadBookings = useCallback(async () => {
+    if (!user?.email) {
       setHeldBookings([]);
+      return;
     }
-  }, [user?.email]);
+
+    // 1. Initial immediate paint from local storage
+    const localList = getStoredBookings(user.email);
+    setHeldBookings(localList);
+
+    setLoadingBookings(true);
+
+    // 2. Fetch authenticated user's bookings from server via GET /api/bookings (Authorization: Bearer <token>)
+    try {
+      const serverList = await getMyBookings(token);
+      if (serverList && serverList.length > 0) {
+        const serverMapped: StoredBooking[] = serverList.map((item) => {
+          const matchedLocal = localList.find((l) => l.orderId === item.orderId);
+          return {
+            id: item.id,
+            orderId: item.orderId,
+            userId: item.userId,
+            eventId: item.eventId,
+            seatTypeCode: item.seatTypeCode,
+            quantity: item.quantity,
+            totalAmount: item.totalAmount,
+            bookingStatus: item.bookingStatus,
+            paymentStatus: item.paymentStatus,
+            status: item.bookingStatus,
+            gatewayOrderId: item.gatewayOrderId,
+            gatewayPaymentId: item.gatewayPaymentId,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            eventName: matchedLocal?.eventName,
+            venue: matchedLocal?.venue,
+            eventDate: matchedLocal?.eventDate,
+            seatNumbers: matchedLocal?.seatNumbers,
+            seatIds: matchedLocal?.seatIds,
+            razorpayPaymentId: item.gatewayPaymentId || matchedLocal?.razorpayPaymentId,
+            razorpayOrderId: item.gatewayOrderId || matchedLocal?.razorpayOrderId,
+          };
+        });
+
+        // Merge any locally held bookings not yet indexed on the backend
+        const serverOrderIds = new Set(serverMapped.map((s) => s.orderId));
+        const pendingLocalOnly = localList.filter((l) => !serverOrderIds.has(l.orderId));
+        setHeldBookings([...serverMapped, ...pendingLocalOnly]);
+      }
+    } catch (err: unknown) {
+      console.warn("Could not load bookings from backend service:", err);
+    } finally {
+      setLoadingBookings(false);
+    }
+  }, [user?.email, token]);
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   const filteredEvents = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -79,7 +132,11 @@ export default function Dashboard() {
 
   const confirmedCount = useMemo(() => {
     return heldBookings.filter(
-      (b) => b.paymentStatus === "PAID" || b.status === "CONFIRMED"
+      (b) =>
+        b.paymentStatus === "PAID" ||
+        b.paymentStatus === "SUCCESS" ||
+        b.bookingStatus === "CONFIRMED" ||
+        b.status === "CONFIRMED"
     ).length;
   }, [heldBookings]);
 
@@ -541,7 +598,10 @@ export default function Dashboard() {
                 <div className="booking-cards-grid">
                   {heldBookings.map((bk) => {
                     const isPaid =
-                      bk.paymentStatus === "PAID" || bk.status === "CONFIRMED";
+                      bk.paymentStatus === "PAID" ||
+                      bk.paymentStatus === "SUCCESS" ||
+                      bk.bookingStatus === "CONFIRMED" ||
+                      bk.status === "CONFIRMED";
                     const ev = events.find((item) => item.id === bk.eventId);
                     const title = bk.eventName || ev?.name || `Event #${bk.eventId}`;
                     const venue = bk.venue || ev?.venue || "Main Arena";
@@ -558,6 +618,7 @@ export default function Dashboard() {
                       : "Upcoming Show";
 
                     const isCopied = copiedOrderId === bk.orderId;
+                    const paymentRef = bk.gatewayPaymentId || bk.razorpayPaymentId;
 
                     return (
                       <div
@@ -609,11 +670,11 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          {bk.razorpayPaymentId && (
+                          {paymentRef && (
                             <div className="voucher-row">
                               <span className="voucher-label">Payment ID:</span>
                               <code className="voucher-payment-id">
-                                {bk.razorpayPaymentId}
+                                {paymentRef}
                               </code>
                             </div>
                           )}
@@ -650,10 +711,28 @@ export default function Dashboard() {
                           </div>
                         </div>
 
-                        {/* Actions & Non-Cancellable State */}
+                        {/* Actions & Dedicated Ticket Page Link */}
                         <div className="booking-card-actions">
+                          <Link
+                            href={`/tickets/${encodeURIComponent(bk.orderId)}`}
+                            className="btn btn-sm"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              background: "rgba(255, 196, 107, 0.15)",
+                              color: "var(--glow)",
+                              border: "1px solid var(--glow)",
+                              fontWeight: 700,
+                              padding: "0.45rem 0.95rem",
+                            }}
+                          >
+                            <QrCode size={14} />
+                            <span>View Ticket &amp; QR Pass →</span>
+                          </Link>
+
                           <Link href={`/events/${bk.eventId}`} className="btn btn-sm">
-                            View Show Details →
+                            Show Details
                           </Link>
 
                           {/* CANCEL BOOKING DISABLED AS REQUESTED */}

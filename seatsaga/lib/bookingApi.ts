@@ -1,10 +1,11 @@
 import { BOOKING_SERVICE_URL } from "./services";
+import { getStoredToken } from "./auth";
 
 export interface BookingRequest {
   eventId: number;
   seatTypeCode: string;
   quantity: number;
-  userId: number;
+  userId?: number;
 }
 
 export interface BookingResponse {
@@ -14,17 +15,50 @@ export interface BookingResponse {
   quantity: number;
   totalAmount: number;
   userId: number;
-  seatIds: number[];
-  seatNumbers: string[];
-  status: "SEATS_HELD" | string;
+  seatIds?: number[];
+  seatNumbers?: string[];
+  status?: "SEATS_HELD" | string;
 }
 
-export interface StoredBooking extends BookingResponse {
+/**
+ * Represents the booking entity returned by GET /api/bookings
+ */
+export interface BookingSummaryItem {
+  id: string;
+  orderId: string;
+  userId: number;
+  eventId: number;
+  seatTypeCode: string;
+  quantity: number;
+  totalAmount: number;
+  bookingStatus: "CONFIRMED" | "PENDING" | "CANCELLED" | string;
+  paymentStatus: "SUCCESS" | "PENDING" | "FAILED" | string;
+  gatewayOrderId?: string | null;
+  gatewayPaymentId?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface StoredBooking {
+  id?: string;
+  orderId: string;
+  eventId: number;
+  seatTypeCode: string;
+  quantity: number;
+  totalAmount: number;
+  userId?: number;
+  seatIds?: number[];
+  seatNumbers?: string[];
+  status?: string;
+  bookingStatus?: string;
+  paymentStatus?: "PENDING" | "INITIATED" | "PAID" | "SUCCESS" | "FAILED" | string;
+  gatewayOrderId?: string | null;
+  gatewayPaymentId?: string | null;
   eventName?: string;
   venue?: string;
   eventDate?: string;
   createdAt: string;
-  paymentStatus?: "PENDING" | "INITIATED" | "PAID" | "FAILED" | string;
+  updatedAt?: string;
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
 }
@@ -39,8 +73,8 @@ export function getBookingBaseUrl(): string {
 }
 
 /**
- * Calls the hosted Booking Service endpoint: POST /api/bookings
- * Hosted on https://seat-saga-booking.onrender.com/api/bookings
+ * Calls the Booking Service endpoint: POST /api/bookings
+ * Automatically sends Authorization: Bearer <token> in the request headers.
  */
 export async function bookAndHoldSeats(
   request: BookingRequest,
@@ -56,16 +90,27 @@ export async function bookAndHoldSeats(
     Accept: "application/json",
   };
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  const resolvedToken = token || getStoredToken();
+  if (resolvedToken) {
+    headers["Authorization"] = resolvedToken.startsWith("Bearer ")
+      ? resolvedToken
+      : `Bearer ${resolvedToken}`;
   }
 
-  const payload = {
+  const payload: {
+    eventId: number;
+    seatTypeCode: string;
+    quantity: number;
+    userId?: number;
+  } = {
     eventId: Number(request.eventId),
     seatTypeCode: String(request.seatTypeCode).trim().toUpperCase(),
     quantity: Number(request.quantity),
-    userId: Number(request.userId),
   };
+
+  if (request.userId != null && !isNaN(Number(request.userId))) {
+    payload.userId = Number(request.userId);
+  }
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -85,6 +130,84 @@ export async function bookAndHoldSeats(
   }
 
   return data as BookingResponse;
+}
+
+/**
+ * Calls GET /api/bookings
+ * Sends Authorization: Bearer <token> in the header.
+ * Automatically returns the bookings belonging to the user identified in the token.
+ */
+export async function getMyBookings(
+  token?: string | null
+): Promise<BookingSummaryItem[]> {
+  const resolvedToken = token || getStoredToken();
+  if (!resolvedToken) {
+    return [];
+  }
+
+  const endpoint = getBookingBaseUrl();
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    Authorization: resolvedToken.startsWith("Bearer ")
+      ? resolvedToken
+      : `Bearer ${resolvedToken}`,
+  };
+
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      console.warn("Unauthorized /api/bookings request");
+      return [];
+    }
+    const data = await response.json().catch(() => null);
+    const errorMsg =
+      data?.message ||
+      data?.error ||
+      `Failed to load bookings with status ${response.status}`;
+    throw new Error(errorMsg);
+  }
+
+  const data = await response.json().catch(() => []);
+  return Array.isArray(data) ? (data as BookingSummaryItem[]) : [];
+}
+
+/**
+ * Calls GET /api/bookings/order/{orderId}
+ * Sends Authorization: Bearer <token> in the header.
+ */
+export async function getBookingByOrderId(
+  orderId: string,
+  token?: string | null
+): Promise<BookingSummaryItem | null> {
+  const resolvedToken = token || getStoredToken();
+  const endpoint = `${getBookingBaseUrl()}/order/${encodeURIComponent(orderId)}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  if (resolvedToken) {
+    headers["Authorization"] = resolvedToken.startsWith("Bearer ")
+      ? resolvedToken
+      : `Bearer ${resolvedToken}`;
+  }
+
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => null);
+  return data as BookingSummaryItem;
 }
 
 const HELD_BOOKINGS_PREFIX = "seatsaga_held_bookings_";
@@ -140,5 +263,3 @@ export function removeStoredBooking(userEmail: string, orderId: string): void {
     console.warn("Failed to remove booking locally:", err);
   }
 }
-
-
