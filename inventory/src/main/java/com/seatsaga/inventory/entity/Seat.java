@@ -1,4 +1,3 @@
-
 package com.seatsaga.inventory.entity;
 
 import jakarta.persistence.*;
@@ -16,6 +15,11 @@ import java.time.Instant;
                         name = "uk_seat_event_number",
                         columnNames = {"event_id", "seat_number"}
                 )
+        },
+        indexes = {
+                @Index(name = "idx_seat_order_id", columnList = "order_id"),
+                @Index(name = "idx_seat_booked_by", columnList = "booked_by"),
+                @Index(name = "idx_seat_status_hold_expires", columnList = "status, hold_expires_at")
         }
 )
 @Getter
@@ -49,4 +53,10 @@ public class Seat {
 
     @Column(name = "order_id")
     private String orderId;
+
+    @Column(name = "booked_by")
+    private Long bookedBy;
+
+    @Column(name = "booked_at")
+    private Instant bookedAt;
 }
