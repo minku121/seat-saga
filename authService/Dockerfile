@@ -22,7 +22,7 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests
 
 # Render will provide PORT at runtime
-EXPOSE 8080
+EXPOSE 8079
 
 # Start Spring Boot application
 CMD ["sh", "-c", "java -jar target/*.jar"]
