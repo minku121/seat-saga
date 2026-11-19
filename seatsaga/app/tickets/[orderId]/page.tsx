@@ -233,13 +233,13 @@ export default function TicketDetailsPage() {
   const eventDateStr =
     eventData?.eventDate || (booking as StoredBooking)?.eventDate
       ? new Date(
-          (eventData?.eventDate || (booking as StoredBooking)?.eventDate)!
-        ).toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+        (eventData?.eventDate || (booking as StoredBooking)?.eventDate)!
+      ).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
       : "Upcoming Show Date";
 
   const qrSeed = `${orderId}-${booking?.eventId}-${resolvedSeatNumbers.join(",")}`;
