@@ -96,6 +96,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- In-memory H2 Database for CI / Unit & Integration Tests -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

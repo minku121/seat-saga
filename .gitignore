@@ -9,3 +9,8 @@ application-*.properties
 application-*.yml
 .env
 .env.*
+
+# Allow test application properties for CI
+!**/src/test/resources/application.properties
+!**/src/test/resources/application-*.properties
+
